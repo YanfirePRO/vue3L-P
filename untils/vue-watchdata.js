@@ -62,6 +62,7 @@ function track(target, property){
     deps.add(activeEffect)
     //- 收集与activeEffect相关的依赖
     activeEffect.deps.push(deps)
+    console.log("track-------end")
 }
 
 //- 分支切换与cleanup
@@ -81,7 +82,13 @@ function trigger(target, property){
         return 
     }
     //- 新建Set 避免forEach时无限循环
-    let deps = new Set(depsMap.get(property));
+    let deps = new Set();
+    //- 判断函数是否为当前正在执行的函数，避免无限循环
+    depsMap.get(property).forEach((item)=>{
+        if(item !== activeEffect){
+            deps.add(item)
+        }
+    })
     deps && deps.forEach(fn => fn())
 }
 
@@ -123,7 +130,7 @@ let dataProxy = new Proxy(testdata, {
 */
 
 const renderData = {
-    foo: true,
+    foo: 1,
     bar: true
 }
 
@@ -138,17 +145,24 @@ let renderDataProxy = new Proxy(renderData, {
     }
 })
 
-let temp1, temp2
+// let temp1, temp2
 
+// effect(()=>{
+//     console.log('fn1');
+//     effect(()=>{
+//         console.log('fn2')
+//         temp2 = renderDataProxy.bar
+//     })
+//     temp1 = renderDataProxy.foo
+// })
+
+// setTimeout(()=>{
+//     renderDataProxy.foo = 2
+// }, 2000)
+
+//- 避免无限循环
 effect(()=>{
-    console.log('fn1');
-    effect(()=>{
-        console.log('fn2')
-        temp2 = renderDataProxy.bar
-    })
-    temp1 = renderDataProxy.foo
+    console.log('effect---start')
+    renderDataProxy.foo++
+    console.log('effect---end')
 })
-
-setTimeout(()=>{
-    renderDataProxy.foo = 2
-}, 2000)
