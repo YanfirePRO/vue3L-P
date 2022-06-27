@@ -18,11 +18,28 @@ let testdata = {
 
 //- 全局变量保存注册的effect函数
 let activeEffect = null;
+// function effect(fn){
+//     const effectFn = ()=>{
+//         cleanup(effectFn)
+//         activeEffect = effectFn;
+//         fn()
+//     }
+//     effectFn.deps = []
+//     effectFn()
+// }
+
+//- 兼容嵌套的effect函数
+let effectStack = []
 function effect(fn){
-    const effectFn = ()=>{
-        cleanup(effectFn)
+    const effectFn = () => {
+        cleanup(effectFn);
+        effectStack.push(effectFn);
         activeEffect = effectFn;
-        fn()
+        //- fn里注册监听
+        fn();
+        effectStack.pop()
+        activeEffect = effectStack[effectStack.length - 1]
+
     }
     effectFn.deps = []
     effectFn()
@@ -30,7 +47,7 @@ function effect(fn){
 
 //- 抽离track和trigger函数
 function track(target, property){
-    console.log("track-------", property)
+    console.log("track-------", property, activeEffect)
     if(!activeEffect){
         return 
     }
@@ -79,19 +96,59 @@ let dataProxy = new Proxy(testdata, {
     }
 })
 
+// effect(()=>{
+//     console.log("run effect")
+//     document.body.innerText = dataProxy.ok ? dataProxy.value : 'not'
+// })
+
+// setTimeout(()=>{
+//     dataProxy.ok = false;
+//     dataProxy.value = 200;
+//     console.log(bucket, 'bucket')
+// }, 2000)
+
+/** 
+ * 在vue中, render函数就是在effect中执行，比如<Foo />组件，以及他的子组件<Boo />
+ * effect(()=>{
+ *   Foo.render()
+ * })
+ * 
+ * //- 渲染Boo会发生嵌套
+ * effect(()=>{
+ *   Foo.render()
+ *   effect(()=>{
+ *     Boo.render()  
+ *   })
+ * })
+*/
+
+const renderData = {
+    foo: true,
+    bar: true
+}
+
+let renderDataProxy = new Proxy(renderData, {
+    get: (target, property, receiver)=>{
+        track(target, property)
+        return target[property]
+    },
+    set: (target, property, value, receiver)=>{
+        target[property] = value;
+        trigger(target, property);
+    }
+})
+
+let temp1, temp2
+
 effect(()=>{
-    console.log("run effect")
-    document.body.innerText = dataProxy.ok ? dataProxy.value : 'not'
+    console.log('fn1');
+    effect(()=>{
+        console.log('fn2')
+        temp2 = renderDataProxy.bar
+    })
+    temp1 = renderDataProxy.foo
 })
 
 setTimeout(()=>{
-    dataProxy.ok = false;
-    dataProxy.value = 200;
-    console.log(bucket, 'bucket')
+    renderDataProxy.foo = 2
 }, 2000)
-
-// setTimeout(()=>{
-//     dataProxy.value = 400;
-//     console.log(`重新设置`)
-//     console.log(bucket, 'bucket')
-// }, 4000)
