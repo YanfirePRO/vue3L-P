@@ -1,6 +1,9 @@
 /**
  * 数据监听 --- track/trigger --- 嵌套effect --- trigger剔除正在执行函数（无限循环）
  * /
+
+
+
 /**
  *  数据监听的动态结构
  *  target -- property1
